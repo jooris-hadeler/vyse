@@ -12,6 +12,7 @@ pub struct Editor {
 }
 
 impl Editor {
+    /// Creates a new editor ensuring proper cleanup on panic.
     pub fn new() -> Self {
         let current_hook = take_hook();
         set_hook(Box::new(move |panic_info| {
@@ -27,13 +28,10 @@ impl Editor {
         }
     }
 
+    /// The main application loop.
     pub fn run(&mut self) -> TResult<()> {
         terminal::initialize()?;
-        self.repl()?;
-        terminal::terminate()
-    }
 
-    fn repl(&mut self) -> TResult<()> {
         loop {
             self.render()?;
 
@@ -45,9 +43,10 @@ impl Editor {
             self.handle_event(&event);
         }
 
-        Ok(())
+        terminal::terminate()
     }
 
+    /// Handle an event, e.g. input or resizing.
     fn handle_event(&mut self, event: &Event) {
         match event {
             // Handle quit event.
@@ -64,6 +63,7 @@ impl Editor {
         }
     }
 
+    /// Renders the editor to the screen.
     fn render(&mut self) -> TResult<()> {
         terminal::hide_cursor()?;
 

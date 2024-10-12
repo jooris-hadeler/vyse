@@ -26,6 +26,7 @@ pub struct View {
 }
 
 impl View {
+    /// Loads a new file into the view.
     pub fn load<P: Into<PathBuf>>(&mut self, path: P) -> TResult<()> {
         self.buffer = Buffer::from_path(path)?;
         self.needs_redraw = true;
@@ -33,15 +34,9 @@ impl View {
         Ok(())
     }
 
+    /// Rendes the whole view to the screen.
     pub fn render(&mut self) -> TResult<()> {
-        if !self.needs_redraw {
-            return Ok(());
-        }
-
-        self.current_size = terminal::size()?;
-        let Size { height, width } = self.current_size;
-
-        if height <= 1 || width == 0 {
+        if !self.needs_redraw && !self.is_of_sufficient_size() {
             return Ok(());
         }
 
@@ -55,12 +50,19 @@ impl View {
         Ok(())
     }
 
-    fn height(&self) -> u16 {
+    /// Returns whether or the window is big enough to render the editor.
+    fn is_of_sufficient_size(&self) -> bool {
+        self.current_size.height > 1 && self.current_size.width > 0
+    }
+
+    /// Returns the height of the buffer.
+    fn buffer_height(&self) -> u16 {
         self.current_size.height.saturating_sub(1)
     }
 
+    /// Renders the buffer to the screen.
     fn render_buffer(&mut self) -> TResult<()> {
-        for pos_y in 0..self.height() {
+        for pos_y in 0..self.buffer_height() {
             let buffer_row_index = pos_y as usize + self.scroll_offset.row;
 
             if let Some(line) = self.buffer.get_truncated_line(
@@ -77,6 +79,7 @@ impl View {
         Ok(())
     }
 
+    /// Renders the statusbar to the screen.
     fn render_status_bar(&mut self) -> TResult<()> {
         let Size { height, width } = self.current_size;
 
@@ -112,6 +115,7 @@ impl View {
         Ok(())
     }
 
+    /// Calculates the cursor position relative to the current scroll position.
     fn get_relative_cursor_position(&self) -> Position {
         #[allow(clippy::cast_possible_truncation)]
         Position {
@@ -126,6 +130,7 @@ impl View {
         }
     }
 
+    /// Handles events, e.g. input or resizing.
     pub fn handle_event(&mut self, event: &Event) {
         match event {
             Event::Key(key_event) => self.handle_key_event(key_event),
@@ -135,11 +140,13 @@ impl View {
         }
     }
 
+    /// Handles a resize event.
     fn handle_resize_event(&mut self, width: u16, height: u16) {
         self.current_size = Size { width, height };
         self.needs_redraw = true;
     }
 
+    /// Handles an input event.
     fn handle_key_event(&mut self, key_event: &KeyEvent) {
         if key_event.kind != KeyEventKind::Press {
             return;
@@ -158,6 +165,7 @@ impl View {
         }
     }
 
+    /// Moves the cursor based on a pressed key.
     fn move_cursor(&mut self, key_code: KeyCode) {
         match key_code {
             KeyCode::Left => {
@@ -211,6 +219,7 @@ impl View {
         self.needs_redraw = true;
     }
 
+    /// Updates the scroll status to ensure we can always see the cursor.
     fn update_scroll(&mut self) {
         // If we scroll up and are outside the view, readjust to include the cursor.
         if self.scroll_offset.row > self.cursor_location.row {
@@ -220,7 +229,7 @@ impl View {
         let view_end_row = self
             .scroll_offset
             .row
-            .saturating_add(self.height().saturating_sub(1) as usize);
+            .saturating_add(self.buffer_height().saturating_sub(1) as usize);
 
         // If we scroll down and are now outside the view, readjust to include the cursor.
         if self.cursor_location.row > view_end_row {
@@ -246,9 +255,9 @@ impl View {
     }
 }
 
+/// Rendes a line of text at the given y position.
 fn render_line(pos_y: u16, line_text: &str) -> TResult<()> {
     terminal::move_cursor_to(Position { x: 0, y: pos_y })?;
     terminal::clear_line()?;
-    terminal::print(line_text)?;
-    Ok(())
+    terminal::print(line_text)
 }

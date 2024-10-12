@@ -7,7 +7,7 @@ use crossterm::{
     cursor::{Hide, MoveTo, Show},
     queue,
     style::{Color, Print, SetBackgroundColor, SetForegroundColor},
-    terminal::{disable_raw_mode, enable_raw_mode, size as crossterm_size, Clear, ClearType},
+    terminal::{disable_raw_mode, enable_raw_mode, Clear, ClearType},
 };
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
@@ -61,10 +61,10 @@ pub fn print(text: impl Display) -> TResult<()> {
     queue!(stdout(), Print(text))
 }
 
-pub fn size() -> TResult<Size> {
-    let (width, height) = crossterm_size()?;
-    Ok(Size { width, height })
-}
+// pub fn size() -> TResult<Size> {
+//     let (width, height) = crossterm_size()?;
+//     Ok(Size { width, height })
+// }
 
 pub fn set_foreground_color(color: Color) -> TResult<()> {
     queue!(stdout(), SetForegroundColor(color))
