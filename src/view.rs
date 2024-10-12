@@ -1,6 +1,9 @@
 use std::path::PathBuf;
 
-use crossterm::event::{KeyCode, KeyEvent, KeyEventKind};
+use crossterm::{
+    event::{Event, KeyCode, KeyEvent, KeyEventKind},
+    style::Color,
+};
 
 use crate::{
     buffer::Buffer,
@@ -38,11 +41,26 @@ impl View {
         self.current_size = terminal::size()?;
         let Size { height, width } = self.current_size;
 
-        if height == 0 || width == 0 {
+        if height <= 1 || width == 0 {
             return Ok(());
         }
 
-        for pos_y in 0..height {
+        self.render_buffer()?;
+        self.render_status_bar()?;
+
+        terminal::move_cursor_to(self.get_relative_cursor_position())?;
+
+        self.needs_redraw = false;
+
+        Ok(())
+    }
+
+    fn height(&self) -> u16 {
+        self.current_size.height.saturating_sub(1)
+    }
+
+    fn render_buffer(&mut self) -> TResult<()> {
+        for pos_y in 0..self.height() {
             let buffer_row_index = pos_y as usize + self.scroll_offset.row;
 
             if let Some(line) = self.buffer.get_truncated_line(
@@ -56,9 +74,40 @@ impl View {
             }
         }
 
-        terminal::move_cursor_to(self.get_relative_cursor_position())?;
+        Ok(())
+    }
 
-        self.needs_redraw = false;
+    fn render_status_bar(&mut self) -> TResult<()> {
+        let Size { height, width } = self.current_size;
+
+        terminal::move_cursor_to(Position {
+            x: 0,
+            y: height - 1,
+        })?;
+
+        // Set status bar colors and clear line.
+        terminal::set_foreground_color(Color::Black)?;
+        terminal::set_background_color(Color::White)?;
+        terminal::clear_line()?;
+
+        // Display current file path.
+        terminal::print(self.buffer.path.to_str().unwrap())?;
+
+        // Display cursor position.
+        let current_location = format!(
+            "LINE {} COL {}",
+            self.cursor_location.row + 1,
+            self.cursor_location.col + 1
+        );
+        terminal::move_cursor_to(Position {
+            x: width.saturating_sub(current_location.len() as u16),
+            y: height - 1,
+        })?;
+        terminal::print(current_location)?;
+
+        // Reset status bar colors.
+        terminal::set_foreground_color(Color::White)?;
+        terminal::set_background_color(Color::Black)?;
 
         Ok(())
     }
@@ -77,11 +126,21 @@ impl View {
         }
     }
 
-    pub fn handle_resize_event(&mut self) {
+    pub fn handle_event(&mut self, event: &Event) {
+        match event {
+            Event::Key(key_event) => self.handle_key_event(key_event),
+            Event::Resize(width, height) => self.handle_resize_event(*width, *height),
+
+            _ => (),
+        }
+    }
+
+    fn handle_resize_event(&mut self, width: u16, height: u16) {
+        self.current_size = Size { width, height };
         self.needs_redraw = true;
     }
 
-    pub fn handle_key_event(&mut self, key_event: &KeyEvent) {
+    fn handle_key_event(&mut self, key_event: &KeyEvent) {
         if key_event.kind != KeyEventKind::Press {
             return;
         }
@@ -161,7 +220,7 @@ impl View {
         let view_end_row = self
             .scroll_offset
             .row
-            .saturating_add(self.current_size.height as usize);
+            .saturating_add(self.height().saturating_sub(1) as usize);
 
         // If we scroll down and are now outside the view, readjust to include the cursor.
         if self.cursor_location.row > view_end_row {

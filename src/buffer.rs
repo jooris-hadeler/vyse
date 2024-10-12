@@ -1,16 +1,27 @@
 use std::{fs, io, path::PathBuf};
 
-#[derive(Debug, Default)]
+impl Default for Buffer {
+    fn default() -> Self {
+        Buffer {
+            lines: Vec::new(),
+            path: "<empty file>".into(),
+        }
+    }
+}
+
+#[derive(Debug)]
 pub struct Buffer {
     pub lines: Vec<String>,
+    pub path: PathBuf,
 }
 
 impl Buffer {
     pub fn from_path<P: Into<PathBuf>>(path: P) -> Result<Self, io::Error> {
-        let content = fs::read_to_string(path.into())?;
+        let path = path.into();
+        let content = fs::read_to_string(&path)?;
         let lines = content.lines().map(str::to_string).collect();
 
-        Ok(Self { lines })
+        Ok(Self { lines, path })
     }
 
     pub fn get_line_length(&self, number: usize) -> usize {

@@ -6,7 +6,7 @@ use std::{
 use crossterm::{
     cursor::{Hide, MoveTo, Show},
     queue,
-    style::Print,
+    style::{Color, Print, SetBackgroundColor, SetForegroundColor},
     terminal::{disable_raw_mode, enable_raw_mode, size as crossterm_size, Clear, ClearType},
 };
 
@@ -64,6 +64,14 @@ pub fn print(text: impl Display) -> TResult<()> {
 pub fn size() -> TResult<Size> {
     let (width, height) = crossterm_size()?;
     Ok(Size { width, height })
+}
+
+pub fn set_foreground_color(color: Color) -> TResult<()> {
+    queue!(stdout(), SetForegroundColor(color))
+}
+
+pub fn set_background_color(color: Color) -> TResult<()> {
+    queue!(stdout(), SetBackgroundColor(color))
 }
 
 pub fn execute() -> TResult<()> {

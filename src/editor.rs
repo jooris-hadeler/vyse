@@ -34,9 +34,6 @@ impl Editor {
     }
 
     fn repl(&mut self) -> TResult<()> {
-        // We send a resize event now to ensure we draw the view correctly.
-        self.view.handle_resize_event();
-
         loop {
             self.render()?;
 
@@ -63,11 +60,7 @@ impl Editor {
                 self.should_quit = true;
             }
 
-            // Send relevant events to View.
-            Event::Key(key_event) => self.view.handle_key_event(key_event),
-            Event::Resize(..) => self.view.handle_resize_event(),
-
-            _ => (),
+            event => self.view.handle_event(event),
         }
     }
 
